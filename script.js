@@ -5,49 +5,12 @@ const suggestionsList = document.getElementById('suggestions');
 const clearListBtn = document.getElementById('clearListBtn');
 const completionMessage = document.getElementById('completionMessage');
 
-// --- Funções de Persistência e Lógica ---
+// --- Funções Auxiliares ---
 
-// Salva a lista no localStorage
-function saveList() {
-    const items = [];
-    document.querySelectorAll('.product-item').forEach(item => {
-        items.push({
-            name: item.querySelector('span').textContent,
-            quantity: item.querySelector('.quantity').textContent,
-            image: item.querySelector('img').src,
-            completed: item.classList.contains('completed')
-        });
-    });
-    localStorage.setItem('shoppingList', JSON.stringify(items));
+function removeAccents(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-// Carrega a lista do localStorage
-function loadList() {
-    const items = JSON.parse(localStorage.getItem('shoppingList')) || [];
-    items.forEach(item => {
-        const li = document.createElement('li');
-        li.className = `product-item ${item.completed ? 'completed' : ''}`;
-        li.innerHTML = `
-            <div class="item-content">
-                <img src="${item.image}" alt="Imagem do Produto">
-                <span>${item.name}</span>
-            </div>
-            <div class="quantity-controls">
-                <button class="decrease-qty-btn">-</button>
-                <span class="quantity">${item.quantity}</span>
-                <button class="increase-qty-btn">+</button>
-            </div>
-            <div class="item-actions">
-                <button class="check-btn"><i class="fas fa-check"></i></button>
-                <button class="remove-btn"><i class="fas fa-trash-alt"></i></button>
-            </div>
-        `;
-        productList.appendChild(li);
-    });
-    checkCompletion();
-}
-
-// Verifica se todos os itens foram marcados e exibe a mensagem
 function checkCompletion() {
     const totalItems = document.querySelectorAll('.product-item').length;
     const completedItems = document.querySelectorAll('.product-item.completed').length;
@@ -60,14 +23,69 @@ function checkCompletion() {
     }
 }
 
-// --- Funções Auxiliares (já existentes) ---
 
-// Função para remover acentos...
-function removeAccents(str) {
-    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+// Salva a lista no localStorage
+function saveList() {
+    const items = [];
+    document.querySelectorAll('.product-item').forEach(item => {
+        const imgElement = item.querySelector('img');
+        const isPlaceholder = imgElement.classList.contains('no-image');
+        
+
+        const quantityText = item.querySelector('.quantity-display').textContent; 
+        const unitMatch = quantityText.match(/[a-zA-Z]+$/);
+        const unit = unitMatch ? unitMatch[0].trim() : '';
+
+        items.push({
+            name: item.querySelector('span').textContent,
+            quantity: quantityText, // Salva o valor completo (ex: "1,50 kg")
+            unit: unit,
+            image: imgElement.src,
+            completed: item.classList.contains('completed'),
+            isPlaceholder: isPlaceholder 
+        });
+    });
+    localStorage.setItem('shoppingList', JSON.stringify(items));
 }
 
-// Função para mostrar sugestões...
+// Carrega a lista do localStorage 
+function loadList() {
+    const items = JSON.parse(localStorage.getItem('shoppingList')) || [];
+    productList.innerHTML = ''; 
+    
+    items.forEach(item => {
+        const isPlaceholder = item.image === "https://via.placeholder.com/40" || item.isPlaceholder;
+        const imageClass = isPlaceholder ? 'no-image' : '';
+        const altText = isPlaceholder ? '' : 'Imagem do Produto'; 
+        
+        const li = document.createElement('li');
+        li.className = `product-item ${item.completed ? 'completed' : ''}`;
+        li.innerHTML = `
+            <div class="item-content">
+                <img src="${item.image}" alt="${altText}" class="${imageClass}">
+                <span>${item.name}</span>
+            </div>
+            
+            <div class="item-details">
+                <span class="quantity-display">${item.quantity}</span> 
+                <div class="quantity-controls">
+                    <button class="decrease-qty-btn">-</button>
+                    <button class="increase-qty-btn">+</button>
+                </div>
+            </div>
+
+            <div class="item-actions">
+                <button class="check-btn"><i class="fas fa-check"></i></button>
+                <button class="remove-btn"><i class="fas fa-trash-alt"></i></button>
+            </div>
+        `;
+        productList.appendChild(li);
+    });
+    checkCompletion();
+}
+
+// --- Funções de Sugestão ---
+
 function showSuggestions() {
     const query = removeAccents(productInput.value.toLowerCase());
     suggestionsList.innerHTML = '';
@@ -91,7 +109,7 @@ function showSuggestions() {
     });
 }
 
-// --- Lógica Principal da Lista de Compras ---
+// --- Lógica Principal da Lista de Compras  ---
 
 // Adicionar produto
 function addProduct() {
@@ -105,11 +123,17 @@ function addProduct() {
         removeAccents(item.name.toLowerCase()) === removeAccents(productNameInput.toLowerCase())
     );
 
-    const imageUrl = productData ? productData.image : "https://via.placeholder.com/40";
-    const displayName = productData ? productData.name : productNameInput;
+    // Variáveis de controle
+    const isPlaceholder = !productData; 
+    const imageUrl = isPlaceholder ? "https://via.placeholder.com/40" : productData.image;
+    const displayName = isPlaceholder ? productNameInput : productData.name;
+    const imageClass = isPlaceholder ? 'no-image' : ''; 
+    const altText = isPlaceholder ? '' : 'Imagem do Produto'; 
+    
+    // Define a unidade. Se não estiver no DB, usa "un" como padrão.
+    const unitType = productData ? productData.unit : "un";
 
-    // Verificação de duplicidade
-
+    // Processamento de Duplicidade 
     const existingItems = document.querySelectorAll('#productList .item-content span');
     let isDuplicate = false;
     existingItems.forEach(item => {
@@ -126,49 +150,77 @@ function addProduct() {
             return;
         }
     }
+    
+    // SOLICITAÇÃO DA QUANTIDADE E UNIDADE 
+    let quantityValue;
+    let validQuantity = false;
 
+    while (!validQuantity) {
+        const promptMessage = `Quantos(as) ${unitType} de ${displayName} você precisa? (Use ponto ou vírgula para decimais, ex: 1.5)`;
+        const input = prompt(promptMessage);
 
+        if (input === null || input.trim() === "") {
+            quantityValue = 1; // Padrão se o usuário cancelar ou deixar vazio
+            validQuantity = true;
+        } else {
+            // Permite vírgula ou ponto, mas converte para ponto para parseFloat
+            const numericValue = parseFloat(input.replace(',', '.')); 
+            if (!isNaN(numericValue) && numericValue > 0) {
+                quantityValue = numericValue;
+                validQuantity = true;
+            } else {
+                alert("Por favor, insira um número válido e positivo.");
+            }
+        }
+    }
+
+    // Formata a exibição da quantidade (ex: "1 un", "1,50 kg")
+    const formattedQuantity = (quantityValue % 1 === 0) 
+        ? quantityValue.toString() + " " + unitType // Ex: "2 kg"
+        : quantityValue.toFixed(2).replace('.', ',') + " " + unitType; // Ex: "1,50 kg"
+
+    // Criação do Elemento na Lista 
     const li = document.createElement('li');
     li.className = 'product-item';
     li.innerHTML = `
         <div class="item-content">
-            <img src="${imageUrl}" alt="Imagem do Produto">
+            <img src="${imageUrl}" alt="${altText}" class="${imageClass}">
             <span>${displayName}</span>
         </div>
-        <div class="quantity-controls">
-            <button class="decrease-qty-btn">-</button>
-            <span class="quantity">1</span>
-            <button class="increase-qty-btn">+</button>
+        
+        <div class="item-details">
+            <span class="quantity-display">${formattedQuantity}</span> 
+            <div class="quantity-controls">
+                <button class="decrease-qty-btn">-</button>
+                <button class="increase-qty-btn">+</button>
+            </div>
         </div>
+        
         <div class="item-actions">
-                <button class="check-btn"><i class="fas fa-check"></i></button>
-                <button class="remove-btn"><i class="fas fa-trash-alt"></i></button>
+            <button class="check-btn"><i class="fas fa-check"></i></button>
+            <button class="remove-btn"><i class="fas fa-trash-alt"></i></button>
         </div>
     `;
 
     productList.appendChild(li);
     productInput.value = '';
     suggestionsList.innerHTML = '';
-    saveList(); // Salva a lista após adicionar um item
-    checkCompletion(); // Verifica a conclusão
+    saveList();
+    checkCompletion();
 }
 
-// --- Event Listeners ---
+// --- Event Listeners  ---
 
-// Adicionar produto ao clicar no botão
 addProductBtn.addEventListener('click', addProduct);
 
-// Adicionar produto ao pressionar 'Enter'
 productInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         addProduct();
     }
 });
 
-// Evento para mostrar sugestões em tempo real
 productInput.addEventListener('input', showSuggestions);
 
-// Manipular cliques na lista de produtos para check, remover e quantidade
 productList.addEventListener('click', (e) => {
     const target = e.target;
     const item = target.closest('.product-item');
@@ -187,38 +239,55 @@ productList.addEventListener('click', (e) => {
         checkCompletion();
     }
 
-    if (target.closest('.increase-qty-btn')) {
-        const quantitySpan = item.querySelector('.quantity');
-        let quantity = parseInt(quantitySpan.textContent);
-        quantitySpan.textContent = quantity + 1;
-        saveList();
-    }
+    // Lógica de Incremento/Decremento 
+    const quantitySpan = item.querySelector('.quantity-display'); 
+    const fullQuantityText = quantitySpan.textContent;
+    
+   
+    const match = fullQuantityText.match(/^([\d\.,]+)\s*([a-zA-Z]+)$/);
+    
+    if (match) {
+        // Converte para número, aceitando vírgula como decimal
+        let quantity = parseFloat(match[1].replace(',', '.'));
+        const unitType = match[2];
+        
+        // Define o passo de incremento (0.5 para peso/volume, 1 para unidades)
+        const step = (unitType === 'kg' || unitType === 'L' || unitType === 'ml' || unitType === 'g') ? 0.5 : 1; 
 
-    if (target.closest('.decrease-qty-btn')) {
-        const quantitySpan = item.querySelector('.quantity');
-        let quantity = parseInt(quantitySpan.textContent);
-        if (quantity > 1) {
-            quantitySpan.textContent = quantity - 1;
-            saveList();
+        if (target.closest('.increase-qty-btn')) {
+            quantity += step;
         }
+
+        if (target.closest('.decrease-qty-btn')) {
+            if (quantity > step) {
+                quantity -= step;
+            } else {
+               
+                return;
+            }
+        }
+        
+        // Atualiza o Span com o novo valor formatado
+        const formattedQuantity = (quantity % 1 === 0) 
+            ? quantity.toString() + " " + unitType
+            : quantity.toFixed(2).replace('.', ',') + " " + unitType;
+            
+        quantitySpan.textContent = formattedQuantity;
+        saveList();
     }
 });
 
-// Zera a lista ao clicar no botão
 clearListBtn.addEventListener('click', () => {
     localStorage.removeItem('shoppingList');
     productList.innerHTML = '';
     checkCompletion();
 });
 
-// Esconder a lista de sugestões se o usuário clicar fora dela
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.input-area')) {
         suggestionsList.innerHTML = '';
     }
 });
 
-// --- Início da Aplicação ---
 
-// Carrega a lista quando a página é carregada
 document.addEventListener('DOMContentLoaded', loadList);
