@@ -136,7 +136,7 @@ h1 {
 
 
 .product-item.completed {
-    text-decoration: 3px line-through ;
+    text-decoration: line-through black 5px;
     color: #000;
     background-color: #A9A9A9;
 }
