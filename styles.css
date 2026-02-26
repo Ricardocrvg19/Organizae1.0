@@ -1,329 +1,249 @@
+/* Configurações Gerais - Foco em Mobile */
 body {
     font-family: Arial, sans-serif;
     background-color: #f4f4f4;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
     margin: 0;
+    padding: 15px; /* Espaçamento nas bordas da tela */
     background-image: url(https://www.shutterstock.com/image-photo/blurred-background-vibrant-modern-supermarket-600nw-2600018881.jpg);
     background-size: cover;
+    background-attachment: fixed;
+    display: block; /* Remove o centralizado vertical de desktop */
 }
 
-.container {
+.container, .input-area-1 {
     background: #fff;
-    padding: 20px 30px;
+    padding: 20px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     width: 100%;
-    max-width: 500px;
-    text-align: center;
+    margin-bottom: 20px;
+    box-sizing: border-box; /* Garante que o padding não quebre a largura */
+}
+
+.input-area-1 {
+    margin-left: 0; /* Remove o recuo lateral do desktop */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 h1 {
     color: #333;
     margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.5rem;
 }
 
+/* Área de Input */
 .input-area {
     display: flex;
     gap: 10px;
-    margin-bottom: 20px;
+    width: 100%;
 }
-
-.input-area-1 {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 20px 30px;
-    border-radius: 8px;
-    margin-left: 50px;
-    width: 550px;
-    background-color: #f4f4f4;
-    justify-content: center ;
-
-    h1{
-        text-align: center;
-    }
-}
-
-.controls {
-    margin-top: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-#clearListBtn {
-    padding: 10px 15px;
-    border: none;
-    background-color: #d9534f;
-    color: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-    transition:  0.3s;
-}
-
-#clearListBtn:hover {
-    background-color: #c9302c;
-}
-
-#completionMessage {
-    color: #5cb85c;
-    font-weight: bold;
-    display: none; 
-}
-
 
 #productInput {
     flex: 1;
-    padding: 10px;
+    padding: 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
+    font-size: 16px; /* Evita zoom automático no iOS ao focar */
 }
 
 #addProductBtn {
     padding: 10px 15px;
-    border: none;
     background-color: #5cb85c;
     color: #fff;
+    border: none;
     border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s;
 }
 
-#addProductBtn:hover {
-    background-color: #4cae4c;
-}
-
-.suggestions-list {
-    list-style: none;
-    padding: 0;
-    margin-top: -15px;
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    max-height: 150px;
-    overflow-y: auto;
-    z-index: 10;
-    position: relative;
-}
-
-.suggestions-list li {
-    padding: 10px;
-    cursor: pointer;
-    border-bottom: 1px solid #eee;
-}
-
-.suggestions-list li:hover {
-    background-color: #f4f4f4;
-}
-
-#productList {
-    list-style: none;
-    padding: 0;
-}
-
+/* Lista de Produtos - Layout Horizontal Mobile Refinado */
 .product-item {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
+    flex-direction: row; /* Força a linha horizontal */
+    align-items: center; /* Centraliza todos os elementos verticalmente */
+    justify-content: space-between; /* Distribui os 3 blocos (Esquerda, Centro, Direita) */
+    gap: 10px;
+    padding: 12px 10px;
     border: 2px solid black;
-    transition: background-color 0.3s;
+    background-color: #fff;
+    margin-bottom: 10px;
 }
 
-
-.product-item.completed {
-    text-decoration: line-through black 5px;
-    color: #000;
-    background-color: #A9A9A9;
-}
-
+/* 1. LADO ESQUERDO: Imagem e Nome */
 .item-content {
     display: flex;
+    flex-direction: row; /* Imagem ao lado do texto */
     align-items: center;
-    gap: 15px;
-    flex: 1;
-    text-align: left;
+    gap: 10px;
+    flex: 2; /* Dá mais espaço para o nome do produto */
 }
 
 .item-content img {
-    width: 40px;
-    height: 40px;
+    width: 60px;
+    height: 60px;
     border-radius: 4px;
     object-fit: cover;
-}
-
-/* Estilo para a imagem Placeholder */
-.item-content img[src="https://via.placeholder.com/40"] {
-    background-color: #e6e6e6; 
-    border: 1px dashed #cccccc;
-    object-fit: contain;
+    flex-shrink: 0;
 }
 
 .item-content span {
-    flex: 1;
-    text-align: left;
-    text-transform: uppercase;
-}
-
-
-.item-details {
-   
-    display: flex; 
-    align-items: center;
-    gap: 15px; 
-}
-
-.quantity-display {
-    
-    font-size: 1.1em;
     font-weight: bold;
-    min-width: 70px;
-    text-align: center;
-    color: #333;
-    margin-right: 10px;
-    border: 2px solid black;
-    padding: 8px;
-    box-shadow: 4px 4px black;
+    text-transform: uppercase;
+    text-align: left;
+    font-size: 0.85rem;
+    line-height: 1.2;
+}
+
+/* 2. CENTRO: Preço e Controles de Quantidade */
+.item-details {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1.5;
+    gap: 25px;
+}
+
+.item-price-total {
+    font-weight: 900; /* Extra bold */
+    color: #2e7d32; /* Verde floresta, mais visível */
+    font-size: 1rem;
+    display: block;
+    border: 5px solid currentColor;
+    padding: 10px;
 }
 
 .quantity-controls {
-   
     display: flex;
     align-items: center;
-    margin-right: 10px;
-    gap: 0; 
+    
+}
+
+.quantity-display {
+    font-size: 1rem;
+    font-weight: bold;
+    min-width: 40px;
+    padding: 4px;
+    border: 2px solid black;
+    box-shadow: 2px 2px black;
+    text-align: center;
+    background: #fff;
+    margin: 0 2px;
 }
 
 .quantity-controls button {
-    
-    width: 35px;
-    height: 35px;
-    padding: 0; 
-    line-height: 1;
+    width: 40px;
+    height: 40px;
     font-size: 1.2rem;
-    background-color: #fff;
     border: 1px solid #ccc;
-    transition: background-color 0.2s, border-color 0.2s;
+    background: #f8f8f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.quantity-controls button:hover {
-    background-color: #e0e0e0;
-    border-color: #aaa;
-}
-
-/* Arredondamento para unir os botões */
-.quantity-controls .decrease-qty-btn {
-    border-radius: 4px 0 0 4px; 
-    border-right: none; 
-}
-.quantity-controls .increase-qty-btn {
-    border-radius: 0 4px 4px 0; 
-}
-
-/* ----------------------------------------------------------------- */
-
+/* 3. LADO DIREITO: Ações (Check e Remove) */
 .item-actions {
     display: flex;
-    gap: 10px;
+    flex-direction: column; /* Ícones um sobre o outro para economizar espaço horizontal */
+    align-items: flex-end; /* Encosta na direita */
+    justify-content: center;
+    gap: 8px;
+    flex: 0.5;
+}
+
+.item-actions .check-btn {
+    color: #28a745; 
+    border-color: #28a745;
+    padding: 9px;
+    border: 4px solid green;
+
+    .fa-solid, .fas {
+        font-size: 26px; 
+    }
 
 }
+
+  .check-btn {
+        font-size: 10px;
+        color: #fff;
+    }
+
+.item-actions .remove-btn {
+    color: #d9534f; 
+    border-color: #d9534f;
+    padding: 10px;
+    border: 4px solid #d9534f;
+
+    .fa-solid, .fas {
+        font-size: 26px; 
+    }
+}
+
+    .remove-btn {
+        font-size: 10px;
+        color: #fff;
+}
+
+ 
 
 .item-actions button {
     background: none;
-    border: 1px solid;
+    border: 1px solid transparent;
     cursor: pointer;
-    font-size: 1.9rem;
-    border-radius: 10px;
-    margin: 2px;
+    padding: 0;
+    transition: transform 0.2s;
 }
 
-.item-actions .remove-btn {
-    color: #d9534f;
-    transition: color 0.3s;
+/* Estado de Completado */
+.product-item.completed {
+    background-color: #e0e0e0;
+    opacity: 0.8;
 }
 
-.item-actions .remove-btn:hover {
-    color: #c9302c;
+.product-item.completed .item-price-total {
+    color: #777;
+    text-decoration: line-through;
 }
 
-
-.item-actions .check-btn {
-    color: #5cb85c;
-    transition: color 0.3s;
+/* Rodapé e Resumo */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
 }
 
-.item-actions .check-btn:hover {
-    color: #4cae4c;
+#clearListBtn {
+    width: 100%;
+    padding: 15px;
+    background-color: #d9534f;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
 }
 
+.total-summary {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 5px solid #28a745;
+}
 
-/* --- Media Query para Responsividade  --- */
-@media (max-width: 768px) {
-    
-    body {
-        display: block; 
-        height: auto;
-        padding: 10px;
-    }
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.1rem;
+}
 
-    /* Redefine os contêineres para telas pequenas */
-    .container, .input-area-1 {
-        width: 100%;
-        max-width: 100%;
-        margin-left: 0;
-        margin-right: 0;
-        box-sizing: border-box; 
-        margin-top: 50px;
-    }
-
-    
-    .product-item {
-        flex-direction: column;  
-        gap: 10px;
-        padding: 20px;
-        justify-content: center; 
-    }
-
-    .item-content {
-        flex: 100%; 
-        justify-content: center;
-        text-align: center;
-    }
-    
-    .item-content span {
-        text-align: center;
-    }
-    
-    /* Centraliza os detalhes da quantidade no mobile */
-    .item-details {
-        width: 100%;
-        justify-content: center; 
-        gap: 100px;
-        margin: 5px 0;
-    }
-
-    /* Os controles e ações ocupam a largura total no mobile */
-    .quantity-controls,
-    .item-actions {
-        width: 100%;
-        justify-content: center;
-        margin: 5px 0;
-   
-    }
-
-    /* Centraliza o botão de limpar lista */
-    .controls {
-        flex-direction: column;
-        gap: 10px;
-        align-items: stretch;
-    }
-
-    #completionMessage {
-        text-align: center;
-        width: 100%;
-    }
+/* Sugestões de busca */
+.suggestions-list {
+    list-style: none;
+    padding: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    max-height: 200px;
+    overflow-y: auto;
 }

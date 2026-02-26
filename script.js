@@ -4,6 +4,7 @@ const productList = document.getElementById('productList');
 const suggestionsList = document.getElementById('suggestions');
 const clearListBtn = document.getElementById('clearListBtn');
 const completionMessage = document.getElementById('completionMessage');
+const totalValueDisplay = document.getElementById('totalValue');
 
 // --- Funções Auxiliares ---
 
@@ -23,26 +24,61 @@ function checkCompletion() {
     }
 }
 
+// Calcula o valor total de todos os itens na lista
+function calculateTotal() {
+    let totalGeral = 0;
+    document.querySelectorAll('.product-item').forEach(item => {
+        const qtyDisplay = item.querySelector('.quantity-display');
+        const priceUnit = parseFloat(qtyDisplay.dataset.price) || 0;
+        
+        // Extrai apenas o número da string (ex: "2 kg" -> 2)
+        const qtyText = qtyDisplay.textContent.split(' ')[0].replace(',', '.');
+        const qtyNum = parseFloat(qtyText) || 0;
+        
+        const subtotal = qtyNum * priceUnit;
+        
+        // Atualiza o subtotal visual do item específico
+        const subtotalElement = item.querySelector('.item-price-total');
+        if (subtotalElement) {
+            subtotalElement.textContent = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+        }
+        
+        totalGeral += subtotal;
+    });
+    totalValueDisplay.textContent = totalGeral.toFixed(2).replace('.', ',');
+}
+
+// Nova função: Permite editar o preço ao tocar no valor
+function editPrice(itemElement) {
+    const qtyDisplay = itemElement.querySelector('.quantity-display');
+    const name = itemElement.querySelector('.item-name').textContent;
+    const currentPrice = qtyDisplay.dataset.price || "0";
+
+    let newPrice = prompt(`Informe o preço unitário de ${name}:`, currentPrice.replace('.', ','));
+    
+    if (newPrice !== null) {
+        let priceValue = parseFloat(newPrice.replace(',', '.')) || 0;
+        qtyDisplay.dataset.price = priceValue; // Atualiza o preço "escondido" no dataset
+        
+        saveList();
+        calculateTotal(); // Recalcula tudo
+    }
+}
 
 // Salva a lista no localStorage
 function saveList() {
     const items = [];
     document.querySelectorAll('.product-item').forEach(item => {
         const imgElement = item.querySelector('img');
-        const isPlaceholder = imgElement.classList.contains('no-image');
+        const qtyDisplay = item.querySelector('.quantity-display');
         
-
-        const quantityText = item.querySelector('.quantity-display').textContent; 
-        const unitMatch = quantityText.match(/[a-zA-Z]+$/);
-        const unit = unitMatch ? unitMatch[0].trim() : '';
-
         items.push({
-            name: item.querySelector('span').textContent,
-            quantity: quantityText, // Salva o valor completo (ex: "1,50 kg")
-            unit: unit,
+            name: item.querySelector('.item-name').textContent,
+            quantity: qtyDisplay.textContent,
+            price: qtyDisplay.dataset.price, 
             image: imgElement.src,
             completed: item.classList.contains('completed'),
-            isPlaceholder: isPlaceholder 
+            isPlaceholder: imgElement.classList.contains('no-image')
         });
     });
     localStorage.setItem('shoppingList', JSON.stringify(items));
@@ -54,34 +90,45 @@ function loadList() {
     productList.innerHTML = ''; 
     
     items.forEach(item => {
-        const isPlaceholder = item.image === "https://via.placeholder.com/40" || item.isPlaceholder;
-        const imageClass = isPlaceholder ? 'no-image' : '';
-        const altText = isPlaceholder ? '' : 'Imagem do Produto'; 
-        
-        const li = document.createElement('li');
-        li.className = `product-item ${item.completed ? 'completed' : ''}`;
-        li.innerHTML = `
-            <div class="item-content">
-                <img src="${item.image}" alt="${altText}" class="${imageClass}">
-                <span>${item.name}</span>
-            </div>
-            
-            <div class="item-details">
-                <span class="quantity-display">${item.quantity}</span> 
-                <div class="quantity-controls">
-                    <button class="decrease-qty-btn">-</button>
-                    <button class="increase-qty-btn">+</button>
-                </div>
-            </div>
-
-            <div class="item-actions">
-                <button class="check-btn"><i class="fas fa-check"></i></button>
-                <button class="remove-btn"><i class="fas fa-trash-alt"></i></button>
-            </div>
-        `;
-        productList.appendChild(li);
+        renderItem(item.name, item.quantity, item.price, item.image, item.completed, item.isPlaceholder);
     });
+    calculateTotal();
     checkCompletion();
+}
+
+// Função auxiliar para renderizar o HTML do item
+function renderItem(name, quantity, price, image, completed, isPlaceholder) {
+    const imageClass = isPlaceholder ? 'no-image' : '';
+    const altText = isPlaceholder ? '' : 'Imagem do Produto';
+    const priceNum = parseFloat(price) || 0;
+    
+    const qtyText = quantity.split(' ')[0].replace(',', '.');
+    const qtyNum = parseFloat(qtyText) || 0;
+    const subtotal = (qtyNum * priceNum).toFixed(2).replace('.', ',');
+
+    const li = document.createElement('li');
+    li.className = `product-item ${completed ? 'completed' : ''}`;
+    li.innerHTML = `
+        <div class="item-content">
+            <img src="${image}" alt="${altText}" class="${imageClass}">
+            <span class="item-name">${name}</span>
+        </div>
+        
+        <div class="item-details">
+            <span class="item-price-total">R$ ${subtotal}</span>
+            <span class="quantity-display" data-price="${priceNum}">${quantity}</span> 
+            <div class="quantity-controls">
+                <button class="decrease-qty-btn">-</button>
+                <button class="increase-qty-btn">+</button>
+            </div>
+        </div>
+
+        <div class="item-actions">
+            <button class="check-btn"><i class="fas fa-check"></i></button>
+            <button class="remove-btn"><i class="fas fa-trash-alt"></i></button>
+        </div>
+    `;
+    productList.appendChild(li);
 }
 
 // --- Funções de Sugestão ---
@@ -90,9 +137,7 @@ function showSuggestions() {
     const query = removeAccents(productInput.value.toLowerCase());
     suggestionsList.innerHTML = '';
 
-    if (query.length < 2) {
-        return;
-    }
+    if (query.length < 2) return;
 
     const filteredProducts = productsDB.filter(product =>
         removeAccents(product.name.toLowerCase()).includes(query)
@@ -109,185 +154,108 @@ function showSuggestions() {
     });
 }
 
-// --- Lógica Principal da Lista de Compras  ---
+// --- Lógica Principal ---
 
-// Adicionar produto
 function addProduct() {
     const productNameInput = productInput.value.trim();
-    if (productNameInput === '') {
-        alert('Por favor, insira o nome de um produto.');
-        return;
-    }
+    if (productNameInput === '') return;
 
     const productData = productsDB.find(item =>
         removeAccents(item.name.toLowerCase()) === removeAccents(productNameInput.toLowerCase())
     );
 
-    // Variáveis de controle
     const isPlaceholder = !productData; 
     const imageUrl = isPlaceholder ? "https://via.placeholder.com/40" : productData.image;
     const displayName = isPlaceholder ? productNameInput : productData.name;
-    const imageClass = isPlaceholder ? 'no-image' : ''; 
-    const altText = isPlaceholder ? '' : 'Imagem do Produto'; 
-    
-    // Define a unidade. Se não estiver no DB, usa "un" como padrão.
     const unitType = productData ? productData.unit : "un";
 
-    // Processamento de Duplicidade 
-    const existingItems = document.querySelectorAll('#productList .item-content span');
-    let isDuplicate = false;
-    existingItems.forEach(item => {
-        if (removeAccents(item.textContent.toLowerCase()) === removeAccents(displayName.toLowerCase())) {
-            isDuplicate = true;
-        }
-    });
+    // Agora pede APENAS a quantidade. O preço começa em 0.
+    let inputQty = prompt(`Quantos(as) ${unitType} de ${displayName}?`, "1");
+    if (inputQty === null) return;
+    let quantityValue = parseFloat(inputQty.replace(',', '.')) || 1;
 
-    if (isDuplicate) {
-        const confirmAdd = confirm(`O produto "${displayName}" já foi adicionado. Deseja adicioná-lo novamente?`);
-        if (!confirmAdd) {
-            productInput.value = '';
-            suggestionsList.innerHTML = '';
-            return;
-        }
-    }
-    
-    // SOLICITAÇÃO DA QUANTIDADE E UNIDADE 
-    let quantityValue;
-    let validQuantity = false;
+    // Preço inicial automático como 0
+    let priceValue = 0;
 
-    while (!validQuantity) {
-        const promptMessage = `Quantos(as) ${unitType} de ${displayName} você precisa? (Use ponto ou vírgula para decimais, ex: 1.5)`;
-        const input = prompt(promptMessage);
-
-        if (input === null || input.trim() === "") {
-            quantityValue = 1; // Padrão se o usuário cancelar ou deixar vazio
-            validQuantity = true;
-        } else {
-            // Permite vírgula ou ponto, mas converte para ponto para parseFloat
-            const numericValue = parseFloat(input.replace(',', '.')); 
-            if (!isNaN(numericValue) && numericValue > 0) {
-                quantityValue = numericValue;
-                validQuantity = true;
-            } else {
-                alert("Por favor, insira um número válido e positivo.");
-            }
-        }
-    }
-
-    // Formata a exibição da quantidade (ex: "1 un", "1,50 kg")
     const formattedQuantity = (quantityValue % 1 === 0) 
-        ? quantityValue.toString() + " " + unitType // Ex: "2 kg"
-        : quantityValue.toFixed(2).replace('.', ',') + " " + unitType; // Ex: "1,50 kg"
+        ? quantityValue.toString() + " " + unitType 
+        : quantityValue.toFixed(2).replace('.', ',') + " " + unitType;
 
-    // Criação do Elemento na Lista 
-    const li = document.createElement('li');
-    li.className = 'product-item';
-    li.innerHTML = `
-        <div class="item-content">
-            <img src="${imageUrl}" alt="${altText}" class="${imageClass}">
-            <span>${displayName}</span>
-        </div>
-        
-        <div class="item-details">
-            <span class="quantity-display">${formattedQuantity}</span> 
-            <div class="quantity-controls">
-                <button class="decrease-qty-btn">-</button>
-                <button class="increase-qty-btn">+</button>
-            </div>
-        </div>
-        
-        <div class="item-actions">
-            <button class="check-btn"><i class="fas fa-check"></i></button>
-            <button class="remove-btn"><i class="fas fa-trash-alt"></i></button>
-        </div>
-    `;
-
-    productList.appendChild(li);
+    renderItem(displayName, formattedQuantity, priceValue, imageUrl, false, isPlaceholder);
+    
     productInput.value = '';
     suggestionsList.innerHTML = '';
     saveList();
+    calculateTotal();
     checkCompletion();
 }
 
-// --- Event Listeners  ---
+// --- Event Listeners ---
 
 addProductBtn.addEventListener('click', addProduct);
-
-productInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        addProduct();
-    }
-});
-
+productInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addProduct(); });
 productInput.addEventListener('input', showSuggestions);
 
 productList.addEventListener('click', (e) => {
     const target = e.target;
     const item = target.closest('.product-item');
-
     if (!item) return;
 
+    // Ação de Check
     if (target.closest('.check-btn')) {
         item.classList.toggle('completed');
         saveList();
         checkCompletion();
     }
 
+    // Ação de Remover
     if (target.closest('.remove-btn')) {
-        productList.removeChild(item);
+        item.remove();
         saveList();
+        calculateTotal();
         checkCompletion();
     }
 
-    // Lógica de Incremento/Decremento 
-    const quantitySpan = item.querySelector('.quantity-display'); 
-    const fullQuantityText = quantitySpan.textContent;
-    
-   
-    const match = fullQuantityText.match(/^([\d\.,]+)\s*([a-zA-Z]+)$/);
-    
-    if (match) {
-        // Converte para número, aceitando vírgula como decimal
-        let quantity = parseFloat(match[1].replace(',', '.'));
-        const unitType = match[2];
-        
-        // Define o passo de incremento (0.5 para peso/volume, 1 para unidades)
-        const step = (unitType === 'kg' || unitType === 'L' || unitType === 'ml' || unitType === 'g') ? 0.5 : 1; 
+    // Ação de Editar Preço (Ao clicar no valor R$)
+    if (target.closest('.item-price-total')) {
+        editPrice(item);
+    }
 
-        if (target.closest('.increase-qty-btn')) {
-            quantity += step;
-        }
-
-        if (target.closest('.decrease-qty-btn')) {
-            if (quantity > step) {
-                quantity -= step;
-            } else {
-               
-                return;
-            }
-        }
+    // Controle de Quantidade (+ / -)
+    if (target.closest('.increase-qty-btn') || target.closest('.decrease-qty-btn')) {
+        const qtySpan = item.querySelector('.quantity-display');
+        const match = qtySpan.textContent.match(/^([\d\.,]+)\s*([a-zA-Z]+)$/);
         
-        // Atualiza o Span com o novo valor formatado
-        const formattedQuantity = (quantity % 1 === 0) 
-            ? quantity.toString() + " " + unitType
-            : quantity.toFixed(2).replace('.', ',') + " " + unitType;
+        if (match) {
+            let quantity = parseFloat(match[1].replace(',', '.'));
+            const unit = match[2];
+            const step = (['kg', 'L', 'ml', 'g'].includes(unit)) ? 0.5 : 1;
+            const priceUnit = parseFloat(qtySpan.dataset.price) || 0;
+
+            if (target.closest('.increase-qty-btn')) quantity += step;
+            if (target.closest('.decrease-qty-btn') && quantity > step) quantity -= step;
+
+            qtySpan.textContent = (quantity % 1 === 0) 
+                ? quantity.toString() + " " + unit 
+                : quantity.toFixed(2).replace('.', ',') + " " + unit;
             
-        quantitySpan.textContent = formattedQuantity;
-        saveList();
+            // Atualiza subtotal baseado no preço unitário que já está no dataset
+            const newSubtotal = quantity * priceUnit;
+            item.querySelector('.item-price-total').textContent = `R$ ${newSubtotal.toFixed(2).replace('.', ',')}`;
+            
+            saveList();
+            calculateTotal();
+        }
     }
 });
 
 clearListBtn.addEventListener('click', () => {
-    localStorage.removeItem('shoppingList');
-    productList.innerHTML = '';
-    checkCompletion();
-});
-
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.input-area')) {
-        suggestionsList.innerHTML = '';
+    if(confirm("Deseja zerar toda a lista?")) {
+        localStorage.removeItem('shoppingList');
+        productList.innerHTML = '';
+        calculateTotal();
+        checkCompletion();
     }
 });
-
 
 document.addEventListener('DOMContentLoaded', loadList);
