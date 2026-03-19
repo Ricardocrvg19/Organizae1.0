@@ -1,3 +1,4 @@
+// --- Seleção de Elementos ---
 const productInput = document.getElementById('productInput');
 const addProductBtn = document.getElementById('addProductBtn');
 const productList = document.getElementById('productList');
@@ -12,111 +13,60 @@ function removeAccents(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function checkCompletion() {
-    const totalItems = document.querySelectorAll('.product-item').length;
-    const completedItems = document.querySelectorAll('.product-item.completed').length;
-    
-    if (totalItems > 0 && totalItems === completedItems) {
-        completionMessage.textContent = 'Todos os itens foram buscados!';
-        completionMessage.style.display = 'block';
-    } else {
-        completionMessage.style.display = 'none';
-    }
+function formatCurrency(value) {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-// Calcula o valor total de todos os itens na lista
+// --- Lógica Principal ---
+
 function calculateTotal() {
     let totalGeral = 0;
     document.querySelectorAll('.product-item').forEach(item => {
         const qtyDisplay = item.querySelector('.quantity-display');
         const priceUnit = parseFloat(qtyDisplay.dataset.price) || 0;
+        const quantity = parseFloat(qtyDisplay.dataset.quantity) || 0;
         
-        // Extrai apenas o número da string (ex: "2 kg" -> 2)
-        const qtyText = qtyDisplay.textContent.split(' ')[0].replace(',', '.');
-        const qtyNum = parseFloat(qtyText) || 0;
+        const subtotal = quantity * priceUnit;
         
-        const subtotal = qtyNum * priceUnit;
-        
-        // Atualiza o subtotal visual do item específico
         const subtotalElement = item.querySelector('.item-price-total');
         if (subtotalElement) {
-            subtotalElement.textContent = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+            subtotalElement.textContent = formatCurrency(subtotal);
         }
         
         totalGeral += subtotal;
     });
-    totalValueDisplay.textContent = totalGeral.toFixed(2).replace('.', ',');
+    totalValueDisplay.textContent = totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
 
-// Nova função: Permite editar o preço ao tocar no valor
-function editPrice(itemElement) {
-    const qtyDisplay = itemElement.querySelector('.quantity-display');
-    const name = itemElement.querySelector('.item-name').textContent;
-    const currentPrice = qtyDisplay.dataset.price || "0";
-
-    let newPrice = prompt(`Informe o preço unitário de ${name}:`, currentPrice.replace('.', ','));
-    
-    if (newPrice !== null) {
-        let priceValue = parseFloat(newPrice.replace(',', '.')) || 0;
-        qtyDisplay.dataset.price = priceValue; // Atualiza o preço "escondido" no dataset
-        
-        saveList();
-        calculateTotal(); // Recalcula tudo
-    }
+function checkCompletion() {
+    const totalItems = document.querySelectorAll('.product-item').length;
+    const completedItems = document.querySelectorAll('.product-item.completed').length;
+    completionMessage.style.display = (totalItems > 0 && totalItems === completedItems) ? 'block' : 'none';
 }
 
-// Salva a lista no localStorage
-function saveList() {
-    const items = [];
-    document.querySelectorAll('.product-item').forEach(item => {
-        const imgElement = item.querySelector('img');
-        const qtyDisplay = item.querySelector('.quantity-display');
-        
-        items.push({
-            name: item.querySelector('.item-name').textContent,
-            quantity: qtyDisplay.textContent,
-            price: qtyDisplay.dataset.price, 
-            image: imgElement.src,
-            completed: item.classList.contains('completed'),
-            isPlaceholder: imgElement.classList.contains('no-image')
-        });
-    });
-    localStorage.setItem('shoppingList', JSON.stringify(items));
-}
-
-// Carrega a lista do localStorage 
-function loadList() {
-    const items = JSON.parse(localStorage.getItem('shoppingList')) || [];
-    productList.innerHTML = ''; 
-    
-    items.forEach(item => {
-        renderItem(item.name, item.quantity, item.price, item.image, item.completed, item.isPlaceholder);
-    });
-    calculateTotal();
-    checkCompletion();
-}
-
-// Função auxiliar para renderizar o HTML do item
-function renderItem(name, quantity, price, image, completed, isPlaceholder) {
+function renderItem(name, quantity, unitLabel, price, image, completed, isPlaceholder) {
     const imageClass = isPlaceholder ? 'no-image' : '';
-    const altText = isPlaceholder ? '' : 'Imagem do Produto';
     const priceNum = parseFloat(price) || 0;
-    
-    const qtyText = quantity.split(' ')[0].replace(',', '.');
-    const qtyNum = parseFloat(qtyText) || 0;
-    const subtotal = (qtyNum * priceNum).toFixed(2).replace('.', ',');
+    const subtotal = quantity * priceNum;
 
     const li = document.createElement('li');
     li.className = `product-item ${completed ? 'completed' : ''}`;
+    
+    // Armazenamos os valores puros nos 'data-attributes' para não errar o cálculo
     li.innerHTML = `
         <div class="item-content">
-            <img src="${image}" alt="${altText}" class="${imageClass}">
-            <span class="item-name">${name}</span>
+            <img src="${image}" alt="" class="${imageClass}">
+            <div class="item-info">
+                <span class="item-name">${name}</span>
+                <small class="unit-label">${unitLabel}</small>
+            </div>
         </div>
         
         <div class="item-details">
-            <span class="item-price-total">R$ ${subtotal}</span>
-            <span class="quantity-display" data-price="${priceNum}">${quantity}</span> 
+            <span class="item-price-total">${formatCurrency(subtotal)}</span>
+            <span class="quantity-display" data-quantity="${quantity}" data-price="${priceNum}" data-unit="${unitLabel}">
+                ${quantity.toString().replace('.', ',')} 
+            </span> 
             <div class="quantity-controls">
                 <button class="decrease-qty-btn">-</button>
                 <button class="increase-qty-btn">+</button>
@@ -131,30 +81,34 @@ function renderItem(name, quantity, price, image, completed, isPlaceholder) {
     productList.appendChild(li);
 }
 
-// --- Funções de Sugestão ---
-
 function showSuggestions() {
     const query = removeAccents(productInput.value.toLowerCase());
     suggestionsList.innerHTML = '';
 
-    if (query.length < 2) return;
+    if (query.length < 2) {
+        suggestionsList.style.display = 'none';
+        return;
+    }
 
     const filteredProducts = productsDB.filter(product =>
         removeAccents(product.name.toLowerCase()).includes(query)
     );
 
-    filteredProducts.forEach(product => {
-        const li = document.createElement('li');
-        li.textContent = product.name;
-        li.addEventListener('click', () => {
-            productInput.value = product.name;
-            addProduct();
+    if (filteredProducts.length > 0) {
+        suggestionsList.style.display = 'block';
+        filteredProducts.forEach(product => {
+            const li = document.createElement('li');
+            li.textContent = product.name;
+            li.addEventListener('mousedown', (e) => { // mousedown evita conflito de foco
+                productInput.value = product.name;
+                addProduct();
+            });
+            suggestionsList.appendChild(li);
         });
-        suggestionsList.appendChild(li);
-    });
+    } else {
+        suggestionsList.style.display = 'none';
+    }
 }
-
-// --- Lógica Principal ---
 
 function addProduct() {
     const productNameInput = productInput.value.trim();
@@ -167,88 +121,110 @@ function addProduct() {
     const isPlaceholder = !productData; 
     const imageUrl = isPlaceholder ? "https://via.placeholder.com/40" : productData.image;
     const displayName = isPlaceholder ? productNameInput : productData.name;
-    const unitType = productData ? productData.unit : "un";
+    const unitLabel = productData ? productData.unit : "un";
 
-    // Agora pede APENAS a quantidade. O preço começa em 0.
-    let inputQty = prompt(`Quantos(as) ${unitType} de ${displayName}?`, "1");
+    // Define o passo (step) baseado na unidade
+    const isWeight = ['kg', 'L', 'ml', 'g'].includes(unitLabel.toLowerCase());
+    const defaultQty = isWeight ? "1.0" : "1";
+
+    let inputQty = prompt(`Quantidade de ${displayName} (${unitLabel}):`, defaultQty);
     if (inputQty === null) return;
     let quantityValue = parseFloat(inputQty.replace(',', '.')) || 1;
 
-    // Preço inicial automático como 0
-    let priceValue = 0;
-
-    const formattedQuantity = (quantityValue % 1 === 0) 
-        ? quantityValue.toString() + " " + unitType 
-        : quantityValue.toFixed(2).replace('.', ',') + " " + unitType;
-
-    renderItem(displayName, formattedQuantity, priceValue, imageUrl, false, isPlaceholder);
+    renderItem(displayName, quantityValue, unitLabel, 0, imageUrl, false, isPlaceholder);
     
     productInput.value = '';
-    suggestionsList.innerHTML = '';
+    suggestionsList.style.display = 'none';
     saveList();
     calculateTotal();
     checkCompletion();
 }
 
-// --- Event Listeners ---
+function editPrice(itemElement) {
+    const qtyDisplay = itemElement.querySelector('.quantity-display');
+    const name = itemElement.querySelector('.item-name').textContent;
+    const currentPrice = qtyDisplay.dataset.price || "0";
 
-addProductBtn.addEventListener('click', addProduct);
-productInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addProduct(); });
-productInput.addEventListener('input', showSuggestions);
+    let newPrice = prompt(`Preço unitário/kg de ${name}:`, currentPrice.replace('.', ','));
+    
+    if (newPrice !== null) {
+        qtyDisplay.dataset.price = parseFloat(newPrice.replace(',', '.')) || 0; 
+        saveList();
+        calculateTotal(); 
+    }
+}
+
+// --- Eventos ---
 
 productList.addEventListener('click', (e) => {
     const target = e.target;
     const item = target.closest('.product-item');
     if (!item) return;
 
-    // Ação de Check
-    if (target.closest('.check-btn')) {
+    const qtySpan = item.querySelector('.quantity-display');
+    let quantity = parseFloat(qtySpan.dataset.quantity);
+    const unit = qtySpan.dataset.unit.toLowerCase();
+
+    // Lógica de incremento inteligente
+    const step = (['kg', 'l', 'ml', 'g'].includes(unit)) ? 0.1 : 1;
+
+    if (target.closest('.increase-qty-btn')) {
+        quantity += step;
+    } else if (target.closest('.decrease-qty-btn') && quantity > step) {
+        quantity -= step;
+    } else if (target.closest('.check-btn')) {
         item.classList.toggle('completed');
-        saveList();
-        checkCompletion();
-    }
-
-    // Ação de Remover
-    if (target.closest('.remove-btn')) {
+    } else if (target.closest('.remove-btn')) {
         item.remove();
-        saveList();
-        calculateTotal();
-        checkCompletion();
-    }
-
-    // Ação de Editar Preço (Ao clicar no valor R$)
-    if (target.closest('.item-price-total')) {
+    } else if (target.closest('.item-price-total')) {
         editPrice(item);
     }
 
-    // Controle de Quantidade (+ / -)
-    if (target.closest('.increase-qty-btn') || target.closest('.decrease-qty-btn')) {
-        const qtySpan = item.querySelector('.quantity-display');
-        const match = qtySpan.textContent.match(/^([\d\.,]+)\s*([a-zA-Z]+)$/);
-        
-        if (match) {
-            let quantity = parseFloat(match[1].replace(',', '.'));
-            const unit = match[2];
-            const step = (['kg', 'L', 'ml', 'g'].includes(unit)) ? 0.5 : 1;
-            const priceUnit = parseFloat(qtySpan.dataset.price) || 0;
-
-            if (target.closest('.increase-qty-btn')) quantity += step;
-            if (target.closest('.decrease-qty-btn') && quantity > step) quantity -= step;
-
-            qtySpan.textContent = (quantity % 1 === 0) 
-                ? quantity.toString() + " " + unit 
-                : quantity.toFixed(2).replace('.', ',') + " " + unit;
-            
-            // Atualiza subtotal baseado no preço unitário que já está no dataset
-            const newSubtotal = quantity * priceUnit;
-            item.querySelector('.item-price-total').textContent = `R$ ${newSubtotal.toFixed(2).replace('.', ',')}`;
-            
-            saveList();
-            calculateTotal();
-        }
-    }
+    qtySpan.dataset.quantity = quantity.toFixed(2);
+    qtySpan.textContent = quantity.toFixed(isWeightUnit(unit) ? 2 : 0).replace('.', ',');
+    
+    saveList();
+    calculateTotal();
+    checkCompletion();
 });
 
+function isWeightUnit(unit) {
+    return ['kg', 'l', 'ml', 'g'].includes(unit.toLowerCase());
+}
+
+// --- Persistência ---
+
+function saveList() {
+    const items = [];
+    document.querySelectorAll('.product-item').forEach(item => {
+        const qtyDisplay = item.querySelector('.quantity-display');
+        items.push({
+            name: item.querySelector('.item-name').textContent,
+            unitLabel: item.querySelector('.unit-label').textContent,
+            quantity: qtyDisplay.dataset.quantity,
+            price: qtyDisplay.dataset.price, 
+            image: item.querySelector('img').src,
+            completed: item.classList.contains('completed'),
+            isPlaceholder: item.querySelector('img').classList.contains('no-image')
+        });
+    });
+    localStorage.setItem('shoppingList', JSON.stringify(items));
+}
+
+function loadList() {
+    const items = JSON.parse(localStorage.getItem('shoppingList')) || [];
+    productList.innerHTML = ''; 
+    items.forEach(item => {
+        renderItem(item.name, parseFloat(item.quantity), item.unitLabel, item.price, item.image, item.completed, item.isPlaceholder);
+    });
+    calculateTotal();
+    checkCompletion();
+}
+
+// --- Event Listeners Iniciais ---
+addProductBtn.addEventListener('click', addProduct);
+productInput.addEventListener('input', showSuggestions);
+productInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addProduct(); });
 clearListBtn.addEventListener('click', () => {
     if(confirm("Deseja zerar toda a lista?")) {
         localStorage.removeItem('shoppingList');
